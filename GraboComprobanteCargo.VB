@@ -21,7 +21,7 @@ Public Sub GraboComprobanteCargo(Optional isCargoOtorgamiento As Boolean = False
         RstComprobantes.Update
     End If
     RstComprobantes.Close
-    AuxcomprobID = DMax("ComprobanteID", "Comprobantes") 'AQUI HAY UN POTENCIAL ERROR POR CONCURRENCIA.
+    AuxcomprobID = DMax("ComprobanteID", "Comprobantes") '! AQUI HAY UN POTENCIAL ERROR POR CONCURRENCIA.
 
     RunSQL "INSERT INTO ComprobanteDetalles ( CreditoId, NumCuota, FechaVto, ConceptoCuotaID, ImporteConcepto, FechaLiquidacion, DatoAdicionalText, DatoAdicionalNum, ComprobanteID ) " & _
         "SELECT CreditoId, NumCuota, VtoCuota, ConceptoCuotaID, ImporteConcepto, FechaLiquidacion, DatoAdicionalText, DatoAdicionalNum, {0} AS ComprobanteID " & _

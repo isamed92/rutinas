@@ -64,11 +64,11 @@ If Not RstLinea.EOF Then
     If RstLinea!LineaSeguroVida > 0 Then
         SeguroII = RstLinea!LineaSeguroVida / Plazo
     End If
-             
+    
     DoCmd.RunSQL ("DELETE Liquidacion.* FROM TempoLiquidacion")
-    Set Tempo = CurrentDb.OpenRecordset("TempoLiquidacion") 
-       
-        
+    Set Tempo = openrs("TempoLiquidacion") 
+    
+    
     CapitalPrestado = Capital
     SaldoCapital = CapitalPrestado
     TasaX = Vartasa / 12 / 100
@@ -80,7 +80,8 @@ If Not RstLinea.EOF Then
     SaldoCapital = CapitalPrestado
     
     
-        
+    
+    '? CALCULO DEL CUADRO DE MARCHA DEL CREDITO
     '  Ajuste 1º cuota
     If difDias1eraCuota > 0 Then
         Tempo.AddNew
@@ -104,7 +105,7 @@ If Not RstLinea.EOF Then
             Tempo!Cliente = Forms![002AltaCreditos]![002subaltacreditossolicitante]!NombreII
             Tempo!Documento = Forms![002AltaCreditos]![002subaltacreditossolicitante]!NumeroDoc
         End If
-        Tempo!Sellado = 0 'SelladoII
+        Tempo!Sellado = 0 
         Tempo.Update
     End If
         
@@ -139,7 +140,7 @@ If Not RstLinea.EOF Then
         Tempo!Cuota = Capital + Tempo!Interes + Tempo!IvaInteres + Tempo!Gastos + Tempo!IVAGastos
         Tempo!linea = Forms![002AltaCreditos]!ListaLineasHabilitadas.Column(1)
 
-        If Not IsMissing(Forms![002AltaCreditos]![002subaltacreditossolicitante]!NombreII) Then
+        If Not IsMissing(Forms![002AltaCreditos]![002subaltacreditossolicitante]!NombreII) Then '! poner un punto de debug y comprobar si siempre se entra aqui
             Tempo!Cliente = Forms![002AltaCreditos]![002subaltacreditossolicitante]!NombreII
             Tempo!Documento = Forms![002AltaCreditos]![002subaltacreditossolicitante]!NumeroDoc
         End If
@@ -147,58 +148,64 @@ If Not RstLinea.EOF Then
         Tempo.Update
         FechaCuota = Det1erVTO(LineaId, Date, i)
     Next
+
+    '? APLICACION DE RETENCIONES
+    
     RunSQL "DELETE * FROM RetencionesTempo"
 
     Set RstRetenciones = openrs("RetencionesTempo")
   
-  ' CargoCapital Prestado
-        RstRetenciones.AddNew
-        RstRetenciones!ConceptoCuotaID = 2 ' Capital Prestado
-        RstRetenciones!TempoImporte = CapitalPrestado '(DSum("[Capital]", "TempoLiquidacion"))
-        RstRetenciones!CodigoConcepto = 1
-        RstRetenciones!SucursalID = Forms!Menu.SucursalID
-        RstRetenciones!CreditoID = 0
-        RstRetenciones!PcIP = Forms!Menu.IPPc
-        RstRetenciones.Update
-         
+   ' Cargo Capital Prestado
+        ' RstRetenciones.AddNew
+        ' RstRetenciones!ConceptoCuotaID = 2 ' Capital Prestado
+        ' RstRetenciones!TempoImporte = CapitalPrestado '(DSum("[Capital]", "TempoLiquidacion"))
+        ' RstRetenciones!CodigoConcepto = 1
+        ' RstRetenciones!SucursalID = Forms!Menu.SucursalID
+        ' RstRetenciones!CreditoID = 0
+        ' RstRetenciones!PcIP = Forms!Menu.IPPc
+        ' RstRetenciones.Update
+    AgregarRetencion(2, CapitalPrestado, 0)
   
-  ' Cargo Gastos Originacion
+    ' Cargo Gastos Originacion
        If RstLinea!LineaFondocredito > 0 Then
-          RstRetenciones.AddNew
-          RstRetenciones!ConceptoCuotaID = 22 ' Gastos Originacion
-          RstRetenciones!TempoImporte = CapitalPrestado * 0.015
-          RstRetenciones!CodigoConcepto = 1
-          Retenciones = Retenciones + RstRetenciones!TempoImporte
-          RstRetenciones!SucursalID = Forms!Menu.SucursalID
-          RstRetenciones!CreditoID = 0
-          RstRetenciones!PcIP = Forms!Menu.IPPc
-          RstRetenciones.Update
+        '   RstRetenciones.AddNew
+        '   RstRetenciones!ConceptoCuotaID = 22 ' Gastos Originacion
+        '   RstRetenciones!TempoImporte = CapitalPrestado * 0.015
+        '   RstRetenciones!CodigoConcepto = 1
+        '   RstRetenciones!SucursalID = Forms!Menu.SucursalID
+        '   RstRetenciones!CreditoID = 0
+        '   RstRetenciones!PcIP = Forms!Menu.IPPc
+        '   Retenciones = Retenciones + RstRetenciones!TempoImporte
+        '   RstRetenciones.Update
+        AgregarRetencion(22, CapitalPrestado * 0.015, Retenciones) ' Gastos Originacion
+        AgregarRetencion(47, DSum("[SeguroVida]", "TempoLiquidacion"), Retenciones) ' Fondo Seguro
        End If
 
      '  seguro
-       If RstLinea!LineaFondocredito > 0 Then
-          RstRetenciones.AddNew
-          RstRetenciones!ConceptoCuotaID = 47 ' Fondo Seguro
-          RstRetenciones!TempoImporte = DSum("[SeguroVida]", "TempoLiquidacion")
-          RstRetenciones!CodigoConcepto = 1
-          Retenciones = Retenciones + RstRetenciones!TempoImporte
-          RstRetenciones!SucursalID = Forms!Menu.SucursalID
-          RstRetenciones!CreditoID = 0
-          RstRetenciones!PcIP = Forms!Menu.IPPc
-          RstRetenciones.Update
-       End If
+    '    If RstLinea!LineaFondocredito > 0 Then
+    '       RstRetenciones.AddNew
+    '       RstRetenciones!ConceptoCuotaID = 47 ' Fondo Seguro
+    '       RstRetenciones!TempoImporte = DSum("[SeguroVida]", "TempoLiquidacion")
+    '       RstRetenciones!CodigoConcepto = 1
+    '       RstRetenciones!SucursalID = Forms!Menu.SucursalID
+    '       RstRetenciones!CreditoID = 0
+    '       RstRetenciones!PcIP = Forms!Menu.IPPc
+    '       Retenciones = Retenciones + RstRetenciones!TempoImporte
+    '       RstRetenciones.Update
+    '    End If
        
        ' sellado
        If RstLinea!LineaSellado > 0 Then
-          RstRetenciones.AddNew
-          RstRetenciones!ConceptoCuotaID = 24 ' Sellado
-          RstRetenciones!TempoImporte = (DSum("[Capital]", "TempoLiquidacion") + DSum("[Interes]", "TempoLiquidacion")) * 0.01 '(RstLinea!LineaSellado / 100))
-          RstRetenciones!CodigoConcepto = 1
-          Retenciones = Retenciones + RstRetenciones!TempoImporte
-          RstRetenciones!SucursalID = Forms!Menu.SucursalID
-          RstRetenciones!CreditoID = 0
-          RstRetenciones!PcIP = Forms!Menu.IPPc
-          RstRetenciones.Update
+        '   RstRetenciones.AddNew
+        '   RstRetenciones!ConceptoCuotaID = 24 ' Sellado
+        '   RstRetenciones!TempoImporte = (DSum("[Capital]", "TempoLiquidacion") + DSum("[Interes]", "TempoLiquidacion")) * 0.01 '(RstLinea!LineaSellado / 100))
+        '   RstRetenciones!CodigoConcepto = 1
+        '   RstRetenciones!SucursalID = Forms!Menu.SucursalID
+        '   RstRetenciones!CreditoID = 0
+        '   RstRetenciones!PcIP = Forms!Menu.IPPc
+        '   Retenciones = Retenciones + RstRetenciones!TempoImporte
+        '   RstRetenciones.Update
+        AgregarRetencion(24, (DSum("[Capital]", "TempoLiquidacion") + DSum("[Interes]", "TempoLiquidacion")) * 0.01, Retenciones) 'Sellado
        End If
       
         Forms![002AltaCreditos].Retenciones = Retenciones
@@ -208,10 +215,8 @@ If Not RstLinea.EOF Then
         If Forms![002AltaCreditos].DiasHastaInicio < 0 Then
            Forms![002AltaCreditos].DiasHastaInicio = 0
         End If
-
-        VarRetenciones = 0
-        Forms![002AltaCreditos].ImporteCuota = DLookup("Cuota", "TempoLiquidacion", "Ncuota = 1")
         
+        Forms![002AltaCreditos].ImporteCuota = DLookup("Cuota", "TempoLiquidacion", "Ncuota = 1")
         Forms![002AltaCreditos].MuestroRetenciones.SourceObject = "SubMuestroRetenciones"
         
         DatosRetenciones = "SELECT RetencionesTempo.CreditoId, RetencionesTempo.CodigoConcepto, RetencionesTempo.ConceptoCuotaID, RetencionesTempo.CreditoId, RetencionesTempo.TempoImporte, RetencionesTempo.Dias, RetencionesTempo.PcIP, ConceptosCuota.ConceptoCuotaDescrip " & _
@@ -220,12 +225,16 @@ If Not RstLinea.EOF Then
         
         Forms![002AltaCreditos]![MuestroRetenciones].Form.RecordSource = DatosRetenciones
         
-        If Forms![002AltaCreditos].AniosFin < 70 Then
-           VarConceptoCuota = 4
-        Else
-           VarConceptoCuota = 5
-        End If
+        'If Forms![002AltaCreditos].AniosFin < 70 Then '! QUITAR
+        '   VarConceptoCuota = 4
+        'Else
+        '   VarConceptoCuota = 5
+        'End If
 
+        VarConceptoCuota = IIf(Forms![002AltaCreditos].AniosFin < 70, 4,5)
+
+
+        '? APLICACION DE CARGOS ABAJO
         DatoscargosORI = "SELECT CreditoID, SucursalCod, CreditoCuenta, CreditoFechaProxVto, CreditoSdoCap, EstadoCreditoID, OficinaCod, empleoid " & _
                          "FROM TempConsCredAlta " & _
                          "WHERE EstadoCreditoID IN (4,8,10) " & _
@@ -238,7 +247,6 @@ If Not RstLinea.EOF Then
         RunSQL ("DELETE * FROM TempGestionCobranza")
         
         If Not RstCargosORI.EOF Then
-            RstCargosORI.MoveFirst
             Do Until RstCargosORI.EOF
                 LiquidaBoletaCob RstCargosORI!CreditoID, 4, 100, 0, Now
                 GraboComprobanteCargo True, RstCargosORI!CreditoID
@@ -260,14 +268,16 @@ If Not RstLinea.EOF Then
         PasoATraves datoscargos, "TempoCargosCred"
         
         
-        If RstCargos.RecordCount > 0 Then
+        If not RstCargos.eof Then
             Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = datoscargos
             Forms![002AltaCreditos]!Cargo = DSum("SumaDeImporteConcepto", "TempoCargosCred")
         Else
-            Forms![002AltaCreditos].Cargo = 0
+            Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = ""
+            Forms![002AltaCreditos]!Cargo = 0
         End If
         
         RstCargos.Close
+
         Forms![002AltaCreditos].MuestroRetenciones.Requery
         Forms![002AltaCreditos].MuestroCargo.Requery
     End If
