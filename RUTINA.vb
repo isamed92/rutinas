@@ -185,49 +185,7 @@ If Not RstLinea.EOF Then
 
 
     '? APLICACION DE CARGOS ABAJO
-    ' DatoscargosORI = "SELECT CreditoID, SucursalCod, CreditoCuenta, CreditoFechaProxVto, CreditoSdoCap, EstadoCreditoID, OficinaCod, empleoid " & _
-    '                     "FROM TempConsCredAlta " & _
-    '                     "WHERE EstadoCreditoID IN (4,8,10) " & _
-    '                     "AND OficinaCod IN (100, 107, 103, 112, 113, 114, 200, 201) " & _
-    '                     "AND empleoid = " & [Forms]![002AltaCreditos]![EmpleoSolicitanteID]
-                        
-       
-    ' Set RstCargosORI = OpenRS(DatoscargosORI)
-    
-    ' RunSQL ("DELETE * FROM TempGestionCobranza")
-    
-    ' If Not RstCargosORI.EOF Then
-    '     Do Until RstCargosORI.EOF
-    '         LiquidaBoletaCob RstCargosORI!CreditoID, 4, 100, 0, Now
-    '         GraboComprobanteCargo True, RstCargosORI!CreditoID
-    '         RstCargosORI.MoveNext
-    '     Loop
-    ' End If
-    ' RstCargosORI.Close
     CalculoCargos([Forms]![002AltaCreditos]![EmpleoSolicitanteID], array(100, 107, 103, 112, 113, 114, 200, 201))
-
-    datoscargos = "SELECT a.CreditoID, a.SucursalCod, a.CreditoCuenta, a.CreditoFechaProxVto, a.CreditoSdoCap, a.EstadoCreditoID, a.OficinaCod, a.empleoid, Sum(b.ImporteConcepto) AS SumaDeImporteConcepto, b.ComprobanteID " & _
-                "FROM TempConsCredAlta AS a INNER JOIN TempGestionCobranza as b ON a.CreditoID = b.CreditoId " & _
-                "GROUP BY a.CreditoID, a.SucursalCod, a.CreditoCuenta, a.CreditoFechaProxVto, a.CreditoSdoCap, a.EstadoCreditoID, a.OficinaCod, a.empleoid, b.ComprobanteID " & _
-                "HAVING OficinaCod IN (100, 107, 103, 112, 113, 114, 200, 201)  AND a.empleoid = " & [Forms]![002AltaCreditos]![EmpleoSolicitanteID]
-
-                
-    
-    Set RstCargos = OpenRS(datoscargos)
-    
-    '******************* Armo cargos completos *****************
-    PasoATraves datoscargos, "TempoCargosCred"
-    
-    
-    If not RstCargos.eof Then
-        Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = datoscargos
-        Forms![002AltaCreditos]!Cargo = DSum("SumaDeImporteConcepto", "TempoCargosCred")
-    Else
-        Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = ""
-        Forms![002AltaCreditos]!Cargo = 0
-    End If
-    
-    RstCargos.Close
 
     Forms![002AltaCreditos].MuestroRetenciones.Requery
     Forms![002AltaCreditos].MuestroCargo.Requery
