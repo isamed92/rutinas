@@ -6,7 +6,6 @@ On Error GoTo ErrFrances
 
 Dim RstLinea As Recordset
 Dim Tempo As Recordset
-Dim RstRetenciones As Recordset
 Dim RstCargosORI As Recordset
 Dim RstCargos As Recordset
 Dim Impuesto As Double
@@ -152,134 +151,86 @@ If Not RstLinea.EOF Then
     '? APLICACION DE RETENCIONES
     
     RunSQL "DELETE * FROM RetencionesTempo"
-
-    Set RstRetenciones = openrs("RetencionesTempo")
   
-   ' Cargo Capital Prestado
-        ' RstRetenciones.AddNew
-        ' RstRetenciones!ConceptoCuotaID = 2 ' Capital Prestado
-        ' RstRetenciones!TempoImporte = CapitalPrestado '(DSum("[Capital]", "TempoLiquidacion"))
-        ' RstRetenciones!CodigoConcepto = 1
-        ' RstRetenciones!SucursalID = Forms!Menu.SucursalID
-        ' RstRetenciones!CreditoID = 0
-        ' RstRetenciones!PcIP = Forms!Menu.IPPc
-        ' RstRetenciones.Update
     AgregarRetencion(2, CapitalPrestado, 0)
   
-    ' Cargo Gastos Originacion
-       If RstLinea!LineaFondocredito > 0 Then
-        '   RstRetenciones.AddNew
-        '   RstRetenciones!ConceptoCuotaID = 22 ' Gastos Originacion
-        '   RstRetenciones!TempoImporte = CapitalPrestado * 0.015
-        '   RstRetenciones!CodigoConcepto = 1
-        '   RstRetenciones!SucursalID = Forms!Menu.SucursalID
-        '   RstRetenciones!CreditoID = 0
-        '   RstRetenciones!PcIP = Forms!Menu.IPPc
-        '   Retenciones = Retenciones + RstRetenciones!TempoImporte
-        '   RstRetenciones.Update
-        AgregarRetencion(22, CapitalPrestado * 0.015, Retenciones) ' Gastos Originacion
-        AgregarRetencion(47, DSum("[SeguroVida]", "TempoLiquidacion"), Retenciones) ' Fondo Seguro
-       End If
+    If RstLinea!LineaFondocredito > 0 Then
+    AgregarRetencion(22, CapitalPrestado * 0.015, Retenciones) ' Gastos Originacion
+    AgregarRetencion(47, DSum("[SeguroVida]", "TempoLiquidacion"), Retenciones) ' Fondo Seguro
+    End If
+    
+    If RstLinea!LineaSellado > 0 Then
+    AgregarRetencion(24, (DSum("[Capital]", "TempoLiquidacion") + DSum("[Interes]", "TempoLiquidacion")) * 0.01, Retenciones) 'Sellado
+    End If
+    
+    Forms![002AltaCreditos].Retenciones = Retenciones
+    Forms![002AltaCreditos].CapitalIII = CapitalPrestado 
+    
+        
+    If Forms![002AltaCreditos].DiasHastaInicio < 0 Then
+        Forms![002AltaCreditos].DiasHastaInicio = 0
+    End If
+        
+    Forms![002AltaCreditos].ImporteCuota = DLookup("Cuota", "TempoLiquidacion", "Ncuota = 1")
+    Forms![002AltaCreditos].MuestroRetenciones.SourceObject = "SubMuestroRetenciones"
+        
+    DatosRetenciones = "SELECT RetencionesTempo.CreditoId, RetencionesTempo.CodigoConcepto, RetencionesTempo.ConceptoCuotaID, RetencionesTempo.CreditoId, RetencionesTempo.TempoImporte, RetencionesTempo.Dias, RetencionesTempo.PcIP, ConceptosCuota.ConceptoCuotaDescrip " & _
+                        "FROM ConceptosCuota INNER JOIN RetencionesTempo ON ConceptosCuota.ConceptoCuotaID = RetencionesTempo.ConceptoCuotaID " & _
+                        "WHERE (((RetencionesTempo.CodigoConcepto)=1) AND ((RetencionesTempo.ConceptoCuotaID)>2) AND ((RetencionesTempo.CreditoId)=0) AND ((RetencionesTempo.PcIP)='" & Trim(Forms!Menu!IPPc) & "'))"
+    
+    Forms![002AltaCreditos]![MuestroRetenciones].Form.RecordSource = DatosRetenciones
+        
 
-     '  seguro
-    '    If RstLinea!LineaFondocredito > 0 Then
-    '       RstRetenciones.AddNew
-    '       RstRetenciones!ConceptoCuotaID = 47 ' Fondo Seguro
-    '       RstRetenciones!TempoImporte = DSum("[SeguroVida]", "TempoLiquidacion")
-    '       RstRetenciones!CodigoConcepto = 1
-    '       RstRetenciones!SucursalID = Forms!Menu.SucursalID
-    '       RstRetenciones!CreditoID = 0
-    '       RstRetenciones!PcIP = Forms!Menu.IPPc
-    '       Retenciones = Retenciones + RstRetenciones!TempoImporte
-    '       RstRetenciones.Update
-    '    End If
+    VarConceptoCuota = IIf(Forms![002AltaCreditos].AniosFin < 70, 4,5) '! ENTIENDO QUE ESTA VARIABLE NO SE USA PARA NADA AQUI
+
+
+    '? APLICACION DE CARGOS ABAJO
+    ' DatoscargosORI = "SELECT CreditoID, SucursalCod, CreditoCuenta, CreditoFechaProxVto, CreditoSdoCap, EstadoCreditoID, OficinaCod, empleoid " & _
+    '                     "FROM TempConsCredAlta " & _
+    '                     "WHERE EstadoCreditoID IN (4,8,10) " & _
+    '                     "AND OficinaCod IN (100, 107, 103, 112, 113, 114, 200, 201) " & _
+    '                     "AND empleoid = " & [Forms]![002AltaCreditos]![EmpleoSolicitanteID]
+                        
        
-       ' sellado
-       If RstLinea!LineaSellado > 0 Then
-        '   RstRetenciones.AddNew
-        '   RstRetenciones!ConceptoCuotaID = 24 ' Sellado
-        '   RstRetenciones!TempoImporte = (DSum("[Capital]", "TempoLiquidacion") + DSum("[Interes]", "TempoLiquidacion")) * 0.01 '(RstLinea!LineaSellado / 100))
-        '   RstRetenciones!CodigoConcepto = 1
-        '   RstRetenciones!SucursalID = Forms!Menu.SucursalID
-        '   RstRetenciones!CreditoID = 0
-        '   RstRetenciones!PcIP = Forms!Menu.IPPc
-        '   Retenciones = Retenciones + RstRetenciones!TempoImporte
-        '   RstRetenciones.Update
-        AgregarRetencion(24, (DSum("[Capital]", "TempoLiquidacion") + DSum("[Interes]", "TempoLiquidacion")) * 0.01, Retenciones) 'Sellado
-       End If
-      
-        Forms![002AltaCreditos].Retenciones = Retenciones
-        Forms![002AltaCreditos].CapitalIII = CapitalPrestado 
-        
-        
-        If Forms![002AltaCreditos].DiasHastaInicio < 0 Then
-           Forms![002AltaCreditos].DiasHastaInicio = 0
-        End If
-        
-        Forms![002AltaCreditos].ImporteCuota = DLookup("Cuota", "TempoLiquidacion", "Ncuota = 1")
-        Forms![002AltaCreditos].MuestroRetenciones.SourceObject = "SubMuestroRetenciones"
-        
-        DatosRetenciones = "SELECT RetencionesTempo.CreditoId, RetencionesTempo.CodigoConcepto, RetencionesTempo.ConceptoCuotaID, RetencionesTempo.CreditoId, RetencionesTempo.TempoImporte, RetencionesTempo.Dias, RetencionesTempo.PcIP, ConceptosCuota.ConceptoCuotaDescrip " & _
-                           "FROM ConceptosCuota INNER JOIN RetencionesTempo ON ConceptosCuota.ConceptoCuotaID = RetencionesTempo.ConceptoCuotaID " & _
-                           "WHERE (((RetencionesTempo.CodigoConcepto)=1) AND ((RetencionesTempo.ConceptoCuotaID)>2) AND ((RetencionesTempo.CreditoId)=0) AND ((RetencionesTempo.PcIP)='" & Trim(Forms!Menu!IPPc) & "'))"
-        
-        Forms![002AltaCreditos]![MuestroRetenciones].Form.RecordSource = DatosRetenciones
-        
-        'If Forms![002AltaCreditos].AniosFin < 70 Then '! QUITAR
-        '   VarConceptoCuota = 4
-        'Else
-        '   VarConceptoCuota = 5
-        'End If
+    ' Set RstCargosORI = OpenRS(DatoscargosORI)
+    
+    ' RunSQL ("DELETE * FROM TempGestionCobranza")
+    
+    ' If Not RstCargosORI.EOF Then
+    '     Do Until RstCargosORI.EOF
+    '         LiquidaBoletaCob RstCargosORI!CreditoID, 4, 100, 0, Now
+    '         GraboComprobanteCargo True, RstCargosORI!CreditoID
+    '         RstCargosORI.MoveNext
+    '     Loop
+    ' End If
+    ' RstCargosORI.Close
+    CalculoCargos([Forms]![002AltaCreditos]![EmpleoSolicitanteID], array(100, 107, 103, 112, 113, 114, 200, 201))
 
-        VarConceptoCuota = IIf(Forms![002AltaCreditos].AniosFin < 70, 4,5)
+    datoscargos = "SELECT a.CreditoID, a.SucursalCod, a.CreditoCuenta, a.CreditoFechaProxVto, a.CreditoSdoCap, a.EstadoCreditoID, a.OficinaCod, a.empleoid, Sum(b.ImporteConcepto) AS SumaDeImporteConcepto, b.ComprobanteID " & _
+                "FROM TempConsCredAlta AS a INNER JOIN TempGestionCobranza as b ON a.CreditoID = b.CreditoId " & _
+                "GROUP BY a.CreditoID, a.SucursalCod, a.CreditoCuenta, a.CreditoFechaProxVto, a.CreditoSdoCap, a.EstadoCreditoID, a.OficinaCod, a.empleoid, b.ComprobanteID " & _
+                "HAVING OficinaCod IN (100, 107, 103, 112, 113, 114, 200, 201)  AND a.empleoid = " & [Forms]![002AltaCreditos]![EmpleoSolicitanteID]
 
+                
+    
+    Set RstCargos = OpenRS(datoscargos)
+    
+    '******************* Armo cargos completos *****************
+    PasoATraves datoscargos, "TempoCargosCred"
+    
+    
+    If not RstCargos.eof Then
+        Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = datoscargos
+        Forms![002AltaCreditos]!Cargo = DSum("SumaDeImporteConcepto", "TempoCargosCred")
+    Else
+        Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = ""
+        Forms![002AltaCreditos]!Cargo = 0
+    End If
+    
+    RstCargos.Close
 
-        '? APLICACION DE CARGOS ABAJO
-        DatoscargosORI = "SELECT CreditoID, SucursalCod, CreditoCuenta, CreditoFechaProxVto, CreditoSdoCap, EstadoCreditoID, OficinaCod, empleoid " & _
-                         "FROM TempConsCredAlta " & _
-                         "WHERE EstadoCreditoID IN (4,8,10) " & _
-                         "AND OficinaCod IN (100, 107, 103, 112, 113, 114, 200, 201) " & _
-                         "AND empleoid = " & [Forms]![002AltaCreditos]![EmpleoSolicitanteID]
-                         
-       
-        Set RstCargosORI = OpenRS(DatoscargosORI)
-        
-        RunSQL ("DELETE * FROM TempGestionCobranza")
-        
-        If Not RstCargosORI.EOF Then
-            Do Until RstCargosORI.EOF
-                LiquidaBoletaCob RstCargosORI!CreditoID, 4, 100, 0, Now
-                GraboComprobanteCargo True, RstCargosORI!CreditoID
-                RstCargosORI.MoveNext
-            Loop
-        End If
-        RstCargosORI.Close
-
-        datoscargos = "SELECT a.CreditoID, a.SucursalCod, a.CreditoCuenta, a.CreditoFechaProxVto, a.CreditoSdoCap, a.EstadoCreditoID, a.OficinaCod, a.empleoid, Sum(b.ImporteConcepto) AS SumaDeImporteConcepto, b.ComprobanteID " & _
-                    "FROM TempConsCredAlta AS a INNER JOIN TempGestionCobranza as b ON a.CreditoID = b.CreditoId " & _
-                    "GROUP BY a.CreditoID, a.SucursalCod, a.CreditoCuenta, a.CreditoFechaProxVto, a.CreditoSdoCap, a.EstadoCreditoID, a.OficinaCod, a.empleoid, b.ComprobanteID " & _
-                    "HAVING OficinaCod IN (100, 107, 103, 112, 113, 114, 200, 201)  AND a.empleoid = " & [Forms]![002AltaCreditos]![EmpleoSolicitanteID]
-
-                 
-        
-        Set RstCargos = OpenRS(datoscargos)
-        
-        '******************* Armo cargos completos *****************
-        PasoATraves datoscargos, "TempoCargosCred"
-        
-        
-        If not RstCargos.eof Then
-            Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = datoscargos
-            Forms![002AltaCreditos]!Cargo = DSum("SumaDeImporteConcepto", "TempoCargosCred")
-        Else
-            Forms![002AltaCreditos]![MuestroCargo].Form.RecordSource = ""
-            Forms![002AltaCreditos]!Cargo = 0
-        End If
-        
-        RstCargos.Close
-
-        Forms![002AltaCreditos].MuestroRetenciones.Requery
-        Forms![002AltaCreditos].MuestroCargo.Requery
+    Forms![002AltaCreditos].MuestroRetenciones.Requery
+    Forms![002AltaCreditos].MuestroCargo.Requery
     End If
 Exit Sub
 ErrFrances:
