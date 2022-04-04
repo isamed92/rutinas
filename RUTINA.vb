@@ -184,7 +184,6 @@ If Not RstLinea.EOF Then
     VarConceptoCuota = IIf(Forms![002AltaCreditos].AniosFin < 70, 4,5) '! ENTIENDO QUE ESTA VARIABLE NO SE USA PARA NADA AQUI
 
 
-    '? APLICACION DE CARGOS ABAJO
     CalculoCargos([Forms]![002AltaCreditos]![EmpleoSolicitanteID], array(100, 107, 103, 112, 113, 114, 200, 201))
 
     Forms![002AltaCreditos].MuestroRetenciones.Requery
